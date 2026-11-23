@@ -19,5 +19,6 @@ class CTDataset(Dataset):
             value=r.get('fields',{}).get(k)
             targets[k]=torch.tensor(value if value is not None else [0.]*self.dims[k],dtype=torch.float32)
             if targets[k].shape!=(self.dims[k],): raise ValueError('Field vocabulary mismatch')
+            if value is not None and not ((targets[k]==0)|(targets[k]==1)).all(): raise ValueError('Field annotations must be binary')
             masks[k]=torch.full((self.dims[k],),value is not None)
         return torch.from_numpy(x.astype('float32')).unsqueeze(0),torch.tensor(r['roi_center'],dtype=torch.float32),r['report'],targets,masks

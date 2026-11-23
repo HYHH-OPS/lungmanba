@@ -16,6 +16,13 @@ def generate(model,tokenizer,ct,centers,use_sfc=True,max_length=1024,section_max
         if recent:
             for a,b in zip(recent,recent[1:]):
                 if a==recent[-1]: logits[b]=-torch.inf
+        if use_sfc:
+            # Prevent the body from completing any reserved heading.
+            for heading in HEADINGS:
+                for spelling in (heading, '\n'+heading):
+                    ids=tokenizer.encode(spelling+':\n',add_special_tokens=False)
+                    if ids and (len(ids)==1 or generated[-(len(ids)-1):]==ids[:-1]):
+                        logits[ids[-1]]=-torch.inf
         return int(logits.argmax())
     if not use_sfc:
         while len(generated)<max_length:

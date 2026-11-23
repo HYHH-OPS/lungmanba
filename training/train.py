@@ -17,7 +17,7 @@ def main():
     random.seed(a.seed); np.random.seed(a.seed); torch.manual_seed(a.seed)
     if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported(): raise RuntimeError('Training requires BF16-capable CUDA')
     decoder,tok=load_backbone(a.base_model)
-    model=LungMambaEAR(decoder,dims,cfg['fab']).cuda()
+    model=LungMambaEAR(decoder,dims,cfg['fab'],auxiliary_coefficient=cfg['auxiliary_coefficient']).cuda()
     optimizer=torch.optim.AdamW((p for p in model.parameters() if p.requires_grad),lr=cfg['learning_rate'],weight_decay=cfg['weight_decay'])
     loaders=[DataLoader(CTDataset(m,dims),batch_size=cfg['batch_size'],shuffle=i==0) for i,m in enumerate((a.train,a.validation))]
     if any(len(l.dataset)==0 for l in loaders): raise ValueError('Empty dataset')

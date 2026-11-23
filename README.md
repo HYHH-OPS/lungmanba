@@ -57,3 +57,13 @@ Private clinical CT and reports are not distributed because of privacy and insti
 ## Citation
 
 LungMamba-EAR: Evidence-Aligned Global–Local Modeling for Structured Pulmonary Nodule Reporting from 3D CT. JBHI revision manuscript. Publication metadata will be added when verified; no DOI or publication details are asserted here.
+
+## Offline end-to-end smoke run
+
+```bash
+python -m scripts.smoke_train
+```
+
+Runs synthetic manifest loading at the full CT input shape, a real reduced-width Mamba model, caption and field losses, optimizer update, checkpoint round-trip into a fresh model, and four-section generation. Temporary arrays and checkpoints are deleted automatically. This tests software integration, not report quality or the 2.8B backbone.
+
+Model source: `models/encoder_3d.py`, `models/gl_fpb.py`, `models/bidirectional_mamba.py`, `models/fab.py`, `models/lungmamba_ear.py`, and `models/sfc.py`. Production defaults remain width 2560 and the public frozen 2.8B backbone.
