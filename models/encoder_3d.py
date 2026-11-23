@@ -13,4 +13,3 @@ class Encoder3D(nn.Module):
         for layer in self.stages:
             x=layer(x); features.append(x)
         return features[2],features[4]
-

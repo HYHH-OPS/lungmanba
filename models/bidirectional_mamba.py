@@ -18,4 +18,3 @@ class BidirectionalMamba(nn.Module):
         b=self.backward_scan(x.flip(1)).flip(1)
         x=self.norm(x+self.proj(torch.cat([f,b],-1)))
         return x[:,:164],x[:,164:]
-

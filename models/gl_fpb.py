@@ -21,4 +21,3 @@ class GLFPB(nn.Module):
         local=torch.stack(crops).flatten(2).transpose(1,2)
         glob=F.adaptive_avg_pool3d(s5,(4,4,4)).flatten(2).transpose(1,2)
         return torch.cat([self.global_proj(glob),self.local_proj(local)],1)
-

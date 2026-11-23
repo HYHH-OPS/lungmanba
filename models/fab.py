@@ -10,4 +10,3 @@ def field_loss(logits,targets,masks):
         loss=F.binary_cross_entropy_with_logits(pred,target,reduction='none')
         total=total+(loss*mask).sum()/mask.sum().clamp_min(1)
     return total
-
