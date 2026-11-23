@@ -26,7 +26,6 @@ def main():
         for phase,loader in enumerate(loaders):
             model.train(phase==0); total=0.; count=0
             for ct,centers,reports,targets,masks in loader:
-                tokens=tok(list(reports),padding=True,return_tensors='pt',add_special_tokens=False)
                 # Explicit EOS is part of the caption target, padding is not.
                 seq=[tok.encode(r,add_special_tokens=False)+[tok.eos_token_id] for r in reports]
                 tokens=tok.pad({'input_ids':seq},padding=True,return_tensors='pt')

@@ -1,6 +1,6 @@
 # Official implementation for paper reproducibility
 
-This repository is a **clean, public-release version** of our paper codebase, prepared for **reviewing and reproduction**.  
+This repository is a **clean, public-release version** of our paper codebase, prepared for **reviewing and reproduction**.
 It contains training / inference / evaluation code, plus **template configs**. Private cohorts and model checkpoints are **not** included.
 
 ## Method overview (high level)
@@ -57,12 +57,12 @@ See `docs/README_public_validation.md` for the expected output CSV locations.
 
 ### Private cohort
 
-The private cohort used in the paper is **not released** due to privacy restrictions.  
+The private cohort used in the paper is **not released** due to privacy restrictions.
 To reproduce the training pipeline, create your own CSV files following the schema described in `config/paths.yaml`.
 
 ## Configs
 
-Edit `config/paths.yaml` (template, no private paths are included).  
+Edit `config/paths.yaml` (template, no private paths are included).
 Key fields:
 
 - `caption_csv_train`, `caption_csv_val`
@@ -122,4 +122,3 @@ Add your BibTeX here after camera-ready:
 ## License
 
 See `LICENSE`.
-

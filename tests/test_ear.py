@@ -63,3 +63,16 @@ def test_sfc():
     off=generate(model,Tokenizer(),x,c,False,max_length=32)
     assert all(h in on for h in HEADINGS)
     assert off==''
+
+@pytest.mark.parametrize('fab',['token','query'])
+def test_auxiliary_supervision_location(fab):
+    model=tiny(fab)
+    v,q=model.prefix(torch.randn(1,1,8,32,32),torch.tensor([[4.,16.,16.]]))
+    v.retain_grad(); q.retain_grad()
+    source=v if fab=='token' else q
+    logits={k:h(source.mean(1)) for k,h in model.heads.items()}
+    field_loss(logits,{k:torch.zeros(1,2) for k in FIELDS},{k:torch.ones(1,2) for k in FIELDS}).backward()
+    assert source.grad is not None and source.grad.abs().sum()>0
+    assert (q if fab=='token' else v).grad is None
+    assert model.bridge.forward_scan.in_proj.weight.grad is not None
+    assert model.bridge.backward_scan.in_proj.weight.grad is not None

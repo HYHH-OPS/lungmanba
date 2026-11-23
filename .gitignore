@@ -16,3 +16,14 @@ __pycache__/
 outputs/
 data/
 logs/
+*.h5
+*.hdf5
+*.dicom
+*.mha
+*.mhd
+*.nrrd
+*.log
+*.pem
+*.key
+checkpoints/
+wandb/
