@@ -1,45 +1,18 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
 .venv/
-.venv_wsl/
-*.egg-info/
+__pycache__/
 .pytest_cache/
-
-# Outputs & runs (SCI: do not commit; regenerate per config)
-outputs/
-outputs
-mamba-res/
-.wandb_key
-*.log
-logs/
-train_monitor.txt
-
-# Weights & caches
-models/
 *.pt
 *.pth
+*.ckpt
 *.safetensors
 *.bin
-.BROKEN
-*.BR*
-
-# Local data (never commit)
+*.nii*
+*.dcm
+*.npy
+*.npz
+*.csv
+*.jsonl
+.env*
+outputs/
 data/
-
-# Ablation / run artifacts (do not commit)
-ablation_paper_assets/
-ablation_results_final.tar.gz
-checkpoints/
-wandb/
-
-# Local backups (do not commit)
-*.bak*
-*.bak_*
-
-# IDE / OS
-.idea/
-.vscode/
-.DS_Store
-Thumbs.db
+logs/

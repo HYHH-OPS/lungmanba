@@ -1,0 +1,10 @@
+fab: token
+learning_rate: 0.00001
+weight_decay: 0.01
+batch_size: 3
+precision: bf16
+gradient_clip: 1.0
+epochs: 20
+auxiliary_coefficient: 0.02
+validation_criterion: caption_nll
+seeds: [20261, 20262, 20263, 20264, 20265]
