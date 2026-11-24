@@ -1,125 +1,69 @@
-# Official implementation for paper reproducibility
+# LungMamba-EAR
 
-This repository is a **clean, public-release version** of our paper codebase, prepared for **reviewing and reproduction**.  
-It contains training / inference / evaluation code, plus **template configs**. Private cohorts and model checkpoints are **not** included.
+**Evidence-Aligned Global–Local Modeling for Structured Pulmonary Nodule Reporting from 3D CT**
 
-## Method overview (high level)
+This independent reference implementation generates a target-ROI-conditioned report draft. It implements the architecture specified for the JBHI revision; it is **not verified as the source used to produce the manuscript results**. Earlier code is preserved under `legacy/` and in Git history.
 
-- **Vision encoder**: nnU-Net style encoder with light downsampling to keep higher spatial resolution.
-- **GL-FPB**: a global-local feature pooling / bridging design to preserve both global context and local evidence.
-- **Vision Mamba (Vim Bridge)**: converts 2D/3D features into sequences and applies Mamba blocks as the bridge.
-- **SFC / FAB**: decoding-time or evaluation-time components used in our pipeline for structure/factual consistency (see `paper_eval/` and `paper_eval_extra/`).
+## Architecture and features
 
-For an architecture sketch, see `ARCHITECTURE.md`.
+A randomly initialized five-stage 3D CNN supplies Stage-5 global context (64 tokens) and annotated-ROI-centered Stage-3 local evidence (100 tokens). Independent projections map both streams to 2560 dimensions. Independent forward/backward Mamba selective scans process these tokens plus 32 learned queries. Only the 164 visual outputs condition the frozen `state-spaces/mamba-2.8b-hf` decoder. Token-FAB supervises the visual outputs; Query-FAB changes only the supervision location. Five masked binary field losses have coefficient 0.02. No LoRA, grade head, or pretrained nnU-Net weights are used. An optional parameter-free SFC controls four report sections.
 
-## Repository structure
-
-```text
-.
-├── config/                 # config templates (edit before running)
-├── dataset_pkg/            # lightweight dataset loader used by entrypoints
-├── model/ bridge/ vision/  # core modules
-├── llm/                    # Mamba/LLM loader and adapters
-├── train.py                # Stage-1 (vision+bridge) entry
-├── train_vlm.py            # Stage-2 (VLM) entry
-├── inference.py            # inference entry
-├── scripts/                # utilities + public dataset preparation
-├── paper_eval/             # evaluation pipeline (paper-facing)
-├── paper_eval_extra/       # additional analysis scripts (no private outputs)
-├── tests/
-└── docs/
-```
-
-## Environment (mamba-a800)
-
-The original experiments were run in a conda env similar to:
-
-- Python 3.10
-- PyTorch (CUDA)
-
-Install minimal dependencies:
+## Installation and base model
 
 ```bash
-python -m pip install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m pytest -q
 ```
+
+Training requires a BF16-capable CUDA device with sufficient memory for the frozen 2.8B decoder and differentiable visual prefix. CPU tests use a small randomly initialized real Mamba decoder and never download the backbone. Transformers downloads `state-spaces/mamba-2.8b-hf` on first use; supply `--base-model /path/to/local/model` for an independently downloaded copy. Users must comply with the backbone license and Hugging Face access terms. Optional CUDA acceleration is not required by the reference implementation.
 
 ## Data preparation
 
-### Public datasets
+Provide private JSONL manifests with `volume` (relative path to a preprocessed float32 NumPy array of shape 32×128×128), `roi_center` (annotated z,y,x voxel coordinates in that array), `report`, and optional `fields`. Fields are `location`, `count`, `size`, `density`, and `recommendation`, each a binary vector in a user-defined vocabulary. Omit a field or use null when unavailable; an explicitly supplied all-zero vector is a valid negative target. A YAML field-schema maps each field name to its vector length. Train and validation sets must be separated at patient level.
 
-We provide preparation scripts under `scripts/`:
-
-- LUNA16: `scripts/prepare_luna16_public.py`
-- KiTS19: `scripts/prepare_kits19_public.py`
-- ReX (requires `HF_TOKEN` as an environment variable): `scripts/prepare_public_ablation_data.py`
-
-See `docs/README_public_validation.md` for the expected output CSV locations.
-
-### Private cohort
-
-The private cohort used in the paper is **not released** due to privacy restrictions.  
-To reproduce the training pipeline, create your own CSV files following the schema described in `config/paths.yaml`.
-
-## Configs
-
-Edit `config/paths.yaml` (template, no private paths are included).  
-Key fields:
-
-- `caption_csv_train`, `caption_csv_val`
-- `mamba_hf_model` (HuggingFace model id or local path)
+Users must preprocess their appropriately licensed CT and transform ROI coordinates together. HU windows, resampling spacing, orientation, and physical crop size from the final experiments could not be verified; this repository deliberately does not invent these settings. Record your preprocessing and vocabulary alongside your local experiment. Private manifests and arrays must remain outside Git.
 
 ## Training
 
-### Stage 1 (vision + bridge sanity check)
-
 ```bash
-python train.py --epochs 3 --batch_size 2 --lr 1e-5 --output_dir outputs/stage1
+python -m training.train --config configs/lungmamba_ear.yaml --train /private/train.jsonl --validation /private/val.jsonl --field-schema /private/fields.yaml --output outputs/run --seed 20261
 ```
 
-### Stage 2 (VLM training)
-
-```bash
-python train_vlm.py --epochs 20 --batch_size 1 --lr 2e-5 --output_dir outputs/stage2
-```
+AdamW uses LR 1e-5, weight decay 0.01, batch size 3, BF16, clipping 1.0, and 20 epochs. Repeat for seeds 20261–20265. Best validation caption NLL selects the checkpoint. Checkpoints contain newly trained visual modules and heads; the backbone is excluded. Use `configs/query_fab.yaml` for Query-FAB or set `fab: none` for no auxiliary loss.
 
 ## Inference
 
 ```bash
-python inference.py --val_sample --num_val 5 --out_dir outputs/infer_demo
+python -m inference.generate --checkpoint outputs/run/best.pt --volume /private/ct.npy --roi-center 16 64 64
+# Add --no-sfc to disable structured control.
 ```
+
+Replace the example center with the actual annotation. SFC uses Imaging Findings, Conclusion, Recommendation, and Pathological Tendency, a repetition window of 16, and at most 1024 generated tokens. This reference controller caps each body at 200 tokens, transitions on EOS or the cap, and inserts headings. These controller details are reference choices, not verified original experiment settings. Generated drafts require clinical review.
 
 ## Evaluation
 
-Paper-oriented evaluation entrypoints live in:
+`evaluation.field_metrics.score` computes availability-masked binary TP/FP/FN and micro F1 for each of the five fields. Unavailable entries are excluded; true negatives remain available but do not enter the F1 numerator. Undefined F1 is returned as null. Supply independently annotated or extracted binary predictions using the same vocabulary; this interface is not the original paper's report parser or adjudication protocol. The code cannot independently reproduce all paper numbers without original inputs, outputs, and evaluation records.
 
-- `paper_eval/`
-- `paper_eval_extra/`
+## Pretrained weights
 
-Example (use your existing run directory):
+The trained LungMamba-EAR checkpoints are not publicly distributed. The source code is provided to support independent training and methodological inspection. Users should obtain the publicly available Mamba-2.8B backbone separately and train the visual encoder and evidence bridge on appropriately licensed datasets.
 
-```bash
-python paper_eval/run_full_evaluation.py --out_root outputs/eval --split expanded_audit90
-```
+## Data availability
 
-## Reproducibility scope
-
-- This repo reproduces **the training/inference/evaluation pipeline** and code structure used in the paper.
-- Private cohort data, raw reports, and trained checkpoints are **not included**.
+Private clinical CT and reports are not distributed because of privacy and institutional restrictions. No author-trained weights or patient records are included.
 
 ## Citation
 
-Add your BibTeX here after camera-ready:
+LungMamba-EAR: Evidence-Aligned Global–Local Modeling for Structured Pulmonary Nodule Reporting from 3D CT. JBHI revision manuscript. Publication metadata will be added when verified; no DOI or publication details are asserted here.
 
-```bibtex
-@inproceedings{your_paper_2026,
-  title     = {TODO},
-  author    = {TODO},
-  booktitle = {TMI},
-  year      = {2026}
-}
+## Offline end-to-end smoke run
+
+```bash
+python -m scripts.smoke_train
 ```
 
-## License
+Runs synthetic manifest loading at the full CT input shape, a real reduced-width Mamba model, caption and field losses, optimizer update, checkpoint round-trip into a fresh model, and four-section generation. Temporary arrays and checkpoints are deleted automatically. This tests software integration, not report quality or the 2.8B backbone.
 
-See `LICENSE`.
-
+Model source: `models/encoder_3d.py`, `models/gl_fpb.py`, `models/bidirectional_mamba.py`, `models/fab.py`, `models/lungmamba_ear.py`, and `models/sfc.py`. Production defaults remain width 2560 and the public frozen 2.8B backbone.
